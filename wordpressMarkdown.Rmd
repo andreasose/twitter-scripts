@@ -1,0 +1,81 @@
+---
+title: "Using R for analysing tweets"
+author: "Andreas Ose"
+date: "1 June 2016"
+output: html_document
+---
+
+Today I want to show how to use R (with some packages) in order to download and analyze tweets. Despite numerous such guides have been written before, I have been wanting to write this guide for several reasons:
+
+- many of said guides only demonstrate how to download said tweets, and leave you to discover how to use them in any sensible way.
+- As behavioural scientists, big data can be cool. More often however narrow hypotheses with carefully selected participants allows us to find more useful things, instead of shifting through a lot of noisy data.
+- There's really a lot of fun to be had with data from Twitter.
+  
+This guide requires that you have a Twitter account, R(studio), and have setup a twitter-dev account with OAuth. I'll leave the details of how to get OAuth here, since it explains it better than I would have been able to.  
+By the end of this guide you will be able to download tweets from specific users and from lists, as well as plotting commonly used words and examining tweeting activity.
+ 
+
+
+```{r}
+#Packages required:
+library(twitteR)
+library(ggplot2)
+library(httr)
+library(rjson)
+
+```
+If you don't have these packages, then use `r install.packages("twitteR", "ggplot2", "httr")` before running the code above. To get a feel for the commands we will pass through the code, I urge you to have a look at Twitter's [API documentation](https://dev.twitter.com/rest/public)
+
+## A starting point: The US election
+
+To get warmed up, let's see what the two US presidential nominees have been talking about lately.
+We will use the `r httr` package to request tweets from the API, and some functions from the `r twitteR` package to help put all the tweets into a usable dataframe. All the commands passed to the API are specified in their documentation. Downloading tweets from a single user is very easy, just use the `r userTimeline` function from the `r twitteR` package
+```{r}
+#n specifies how many tweets you want from the user. We will use 200 in this example, but the maximum is 3200. Unfortunately you can't use the API to request tweets older than a week or two at most. This is a restriction of the Twitter Search API, and it often means you won't actually get the number of tweets you specified.
+clinton_tweets <- userTimeline(user = "@HillaryClinton", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
+trump_tweets <- userTimeline(user = "@realDonaldTrump", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
+
+clinton_tweets <- twListToDF(clinton_tweets)
+trump_tweets <- twListToDF(trump_tweets)
+```
+
+If you want to save these tweets for a later time, then use `r write_csv()`to write the tweets your hard drive.  
+Now that we have the tweets down, it is useful to remove any web links and punctuation, as well as stemming the document.
+
+
+
+```{r}
+#clinton_tweets$text <-  sapply(clinton_tweets, function(x) x$getText())
+# remove punctuation
+clinton_tweets$text <-  gsub("[[:punct:]]", "", clinton_tweets$text)
+# remove numbers
+clinton_tweets$text <-  gsub("[[:digit:]]", "", clinton_tweets$text)
+# remove html links
+clinton_tweets$text <-  gsub("http\\w+", "", clinton_tweets$text)
+# remove unnecessary spaces
+clinton_tweets$text <-  gsub("[ \t]{2,}", "", clinton_tweets$text)
+clinton_tweets$text <-  gsub("^\\s+|\\s+$", "", clinton_tweets$text)
+
+# repeat for Trump
+trump_tweets$text <-  gsub("[[:punct:]]", "", trump_tweets$text)
+trump_tweets$text <-  gsub("[[:digit:]]", "", trump_tweets$text)
+trump_tweets$text <-  gsub("http\\w+", "", trump_tweets$text)
+trump_tweets$text <-  gsub("[ \t]{2,}", "", trump_tweets$text)
+trump_tweets$text <-  gsub("^\\s+|\\s+$", "", trump_tweets$text)
+```
+
+```{r, echo=T}
+user <- "hillaryclinton" #put in the screen name (not username) of the person you are interested in
+number_of_tweets <- 1 #The maximum is 3200
+#This next line creates the url string which communicates with the API
+    api_url <- paste0("https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=",
+                        user, "&count=", number_of_tweets)
+    
+api_response <- GET(api_url, config(token=twitteR:::get_oauth_sig()))
+
+#This.
+response_data <- fromJSON(content(api_response, as = "text", encoding = "UTF-8"))
+df <- do.call("rbind", lapply(response_data, as.data.frame))
+tweets <- twListToDF(response_data)
+
+```
