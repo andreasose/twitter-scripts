@@ -9,6 +9,7 @@ Today I want to show how to use R (with some packages) in order to download and 
 
 - many of said guides only demonstrate how to download said tweets, and leave you to discover how to use them in any sensible way.
 - As behavioural scientists, big data can be cool. More often however narrow hypotheses with carefully selected participants allows us to find more useful things, instead of shifting through a lot of noisy data.
+- not enough of the scripts I found online are particularly reusable. Adding some simple functions to the scripts will help, as I've done in this post.
 - There's really a lot of fun to be had with data from Twitter.
   
 This guide requires that you have a Twitter account, R(studio), and have setup a twitter-dev account with OAuth. I'll leave the details of how to get OAuth here, since it explains it better than I would have been able to.  
@@ -28,10 +29,7 @@ library(gridExtra)
 ```
 If you don't have these packages, then use  install.packages("twitteR", "ggplot2", "httr") before running the code above. To get a feel for the commands we will pass through the code, I urge you to have a look at Twitter's [API documentation](https://dev.twitter.com/rest/public)
 ```{r, echo = F}
-API_key <- "P5DCgEAm5nlkm0LPJ5Zp7TcRM"
-API_secret <- "LpaG9ULOrD0GFtPBCnsZCc0mv540l5vbvLm9BPINXvCaQ0ssSZ"
-access_token <- "157793993-TAsXYHcusGOBo8N7OxleQIOgZou6TMbHOmI7JbyO"
-access_secret <- 'V65DTWsfEp3LiyApN1Uur4eSZJx45rbj492QkQ1XqZnOH'
+
 #setup_twitter_oauth(API_key, API_secret, access_token, access_secret)
 ```
 
@@ -58,48 +56,43 @@ Now that we have the tweets down, it is useful to remove any web links and punct
 
 
 ```{r}
-#clinton_tweets$text <-  sapply(clinton_tweets, function(x) x$getText())
 # remove punctuation, numbers, html links and unecessary spaces:
-clinton_tweets$text <-  gsub("[[:punct:]]", "", clinton_tweets$text)
-clinton_tweets$text <-  gsub("[[:digit:]]", "", clinton_tweets$text)
-clinton_tweets$text <-  gsub("http\\w+", "", clinton_tweets$text)
-clinton_tweets$text <-  gsub("[ \t]{2,}", "", clinton_tweets$text)
-clinton_tweets$text <-  gsub("^\\s+|\\s+$", "", clinton_tweets$text)
-# repeat for Trump
-trump_tweets$text <-  gsub("[[:punct:]]", "", trump_tweets$text)
-trump_tweets$text <-  gsub("[[:digit:]]", "", trump_tweets$text)
-trump_tweets$text <-  gsub("http\\w+", "", trump_tweets$text)
-trump_tweets$text <-  gsub("[ \t]{2,}", "", trump_tweets$text)
-trump_tweets$text <-  gsub("^\\s+|\\s+$", "", trump_tweets$text)
+textScrubber <- function(dataframe) {
+    dataframe$text <- gsub("[[:punct:]]", "", dataframe$text)
+    dataframe$text <-  gsub("[[:digit:]]", "", dataframe$text)
+    dataframe$text <-  gsub("http\\w+", "", dataframe$text)
+    dataframe$text <-  gsub("[ \t]{2,}", "", dataframe$text)
+    dataframe$text <-  gsub("^\\s+|\\s+$", "", dataframe$text)
+    return(dataframe)
+}
+
 ```
 
 After that, we remove all the so-called "stopwords" and convert the text into a Term Document Matrix. We can then count and plot the most used words by each nominee
 ```{r}
-tt <- Corpus(VectorSource(trump_tweets$text))
-tt <- tm_map(tt, removeWords, stopwords())
-#tt <- tm_map(tt, stemDocument)
-tdmT <- TermDocumentMatrix(tt, control = list(wordLengths = c(1, Inf)))
-term.freq <- rowSums(as.matrix(tdmT))
-term.freq <- subset(term.freq, term.freq >= 10)
-df.tt <- data.frame(term = names(term.freq), freq = term.freq)
+tdmCreator <- function(dataframe, term.freq = 10, stemDoc = F ){
 
-ct <- Corpus(VectorSource(clinton_tweets$text))
-ct <- tm_map(ct, removeWords, stopwords())
-#ct <- tm_map(ct, stemDocument)
-tdmC <- TermDocumentMatrix(ct, control = list(wordLengths = c(1, Inf)))
-term.freq <- rowSums(as.matrix(tdmC))
-term.freq <- subset(term.freq, term.freq >= 10)
-df.ct <- data.frame(term = names(term.freq), freq = term.freq)
+corpus <- Corpus(VectorSource(dataframe$text))
+corpus <- tm_map(corpus, removeWords, stopwords())
+if (isTRUE(stemDoc)) {
+    corpus <- tm_map(corpus, stemDocument)
+}
+tdm <- TermDocumentMatrix(corpus, control = list(wordLengths = c(1, Inf)))
+term.freq <- rowSums(as.matrix(tdm))
+term.freq <- subset(term.freq, term.freq >= term.freq)
+df <- data.frame(term = names(term.freq), freq = term.freq)
+return(df)
+}
 ```
   
 Finally we can plot each of the candidates most used words:
 ```{r, fig.width= 11}
-trump_plot <- ggplot(df.tt, aes(x = reorder(term, freq), y = freq)) +
+trump_plot <- ggplot(trump_tweets, aes(x = reorder(term, freq), y = freq)) +
     geom_bar(stat = "identity", fill = "red") +
     xlab("Most Used") + ylab("How Often") +
     coord_flip() + theme(text=element_text(size=25,face="bold"))
 
-clinton_plot <- ggplot(df.ct, aes(x = reorder(term, freq), y = freq)) +
+clinton_plot <- ggplot(clinton_tweets, aes(x = reorder(term, freq), y = freq)) +
     geom_bar(stat = "identity", fill = "blue") +
     xlab("Most Used") + ylab("How Often") +
     coord_flip() + theme(text=element_text(size=25,face="bold"))
@@ -108,39 +101,49 @@ grid.arrange(trump_plot, clinton_plot, ncol=2)
 
 ```
   
+[image](C:/Users/user/Dropbox/R/Data/Twitter-scripts/index2.png)  
+
 It should perhaps not come as any great surpise that Trump talks a lot about himself...
 What's more interesting is how much Clinton talks about Trump! Also notice the difference in Hillary in general being more positive: using the word "can" whereas Trump lambasts that we "can't"
   
 But that's only for two Twitter-accounts. What if we wanted to look at a selected sample or a section of a population? If you are just interested in massive amounts of data, then Twitter lets you sample 1% of their data. This is relatively noisy though, so often times it is much better (and smarter) to create a list of users you are interested in. After you have created your list you can simply download all the latest tweets from them using a simple for loop.  
-To continue our investigation into the political world, let's compare tweets from [Democrat](https://twitter.com/TheDemocrats/lists/house-democrats) and [Republican](https://twitter.com/HouseGOP/lists/house-republicans) House Representatives
+To continue our investigation into the political world, let's compare tweets from [Democrat](https://twitter.com/TheDemocrats/lists/house-democrats) and [Republican](https://twitter.com/HouseGOP/lists/house-republicans) House Representatives  
+To make things easier, I have created a function that allows us to extract tweets from all the members of a list. All you need to do is supply the function with the list owner, as well as the name of the list. For the democrats, the function would look like this: democrats <- tweetsFromList("TheDemocrats", "house-democrats")
 
 ```{r}
-twitter_list <- "House Democrats"
-    twitter_name <- "TheDemocrats"
+
+tweetsFromList <- function (listOwner, listName, sleepTime = 7, n_tweets = 200, includeRts = F) {
+
     api_url <- paste0("https://api.twitter.com/1.1/lists/members.json?slug=",
-                      twitter_list, "&owner_screen_name=", twitter_name, "&count=5000")
-response <- POST(api_url, config(token=twitteR:::get_oauth_sig()))
+                  listName, "&owner_screen_name=", listOwner, "&count=5000")
+    response <- GET(api_url, config(token=twitteR:::get_oauth_sig()))
 
-response_data <- fromJSON(content(response, as = "text", encoding = "UTF-8"))
-response_data <- fromJSON(content(response))
-## If you want a list of their profile names, then remove the hastag underneath.
-## Useful if you need to verify identity of people.
-#user_title <- sapply(response_text$users, function(i) i$name)
-user_names <- sapply(response_data$users, function(i) i$screen_name)
+    response_data <- fromJSON(content(response, as = "text", encoding = "UTF-8"))
+    ## If you want a list of their profile names, then remove the hastag underneath and
+    ## add it to the return statement at the bottom.
+    ## Useful if you need to verify identity of people.
+    
+    #user_title <- sapply(response_text$users, function(i) i$name)
+    user_names <- sapply(response_data$users, function(i) i$screen_name)
+    tweets <- list()
+    
+    ## Loops over list of users, use rbind() to add them to list.
+    ## Sleeptime ticks inbetween to avoid rate limit.
+        for (user in user_names) {
+        ## Download user's timeline from Twitter  
+        raw_data <- userTimeline(user, n = n_tweets,
+                                 includeRts = includeRts,
+                                 retryOnRateLimit = 2000)
+        tweets <- rbind(tweets, raw_data)
+        print('Sleeping to avoid rate limit')
+        Sys.sleep(sleepTime); 
+        }
 
-sleepTime <- 6
-tweets <- list()
-## Loops over list of users, use rbind() to add them to list.
-## 6sec ticks inbetween to avoid rate limit.
-for (user in user_names)
-{
-    #Download user's timeline from Twitter  
-    raw_data <- userTimeline(user, n = 500, includeRts = FALSE, retryOnRateLimit = 2000)
-    tweets <- rbind(tweets, raw_data)
-    print('Sleeping for 6 seconds...')
-    Sys.sleep(sleepTime); 
-}
 rm(raw_data)
 tweets <- twListToDF(tweets)
-write.csv(tweets, file =paste0(twitter_list, ".csv"))
+return(tweets)
+}
+
 ```
+
+We can do the same for Republicans by calling republicans <- tweetsFromList("HouseGOP", "house-republicans") . Note that both of these commands will take some time as there will be a lot of tweets downloaded. 
