@@ -101,7 +101,7 @@ grid.arrange(trump_plot, clinton_plot, ncol=2)
 
 ```
   
-[image](https://raw.githubusercontent.com/andreasose/twitter-scripts/master/index2.png)  
+![image](https://raw.githubusercontent.com/andreasose/twitter-scripts/master/index2.png "Trump Vs Clinton")  
 
 It should perhaps not come as any great surpise that Trump talks a lot about himself...
 What's more interesting is how much Clinton talks about Trump! Also notice the difference in Hillary in general being more positive: using the word "can" whereas Trump lambasts that we "can't"
