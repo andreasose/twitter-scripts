@@ -22,40 +22,49 @@ library(twitteR)
 library(ggplot2)
 library(httr)
 library(rjson)
+library(tm)
+library(gridExtra)
 
 ```
-If you don't have these packages, then use `r install.packages("twitteR", "ggplot2", "httr")` before running the code above. To get a feel for the commands we will pass through the code, I urge you to have a look at Twitter's [API documentation](https://dev.twitter.com/rest/public)
+If you don't have these packages, then use  install.packages("twitteR", "ggplot2", "httr") before running the code above. To get a feel for the commands we will pass through the code, I urge you to have a look at Twitter's [API documentation](https://dev.twitter.com/rest/public)
+```{r, echo = F}
+API_key <- "P5DCgEAm5nlkm0LPJ5Zp7TcRM"
+API_secret <- "LpaG9ULOrD0GFtPBCnsZCc0mv540l5vbvLm9BPINXvCaQ0ssSZ"
+access_token <- "157793993-TAsXYHcusGOBo8N7OxleQIOgZou6TMbHOmI7JbyO"
+access_secret <- 'V65DTWsfEp3LiyApN1Uur4eSZJx45rbj492QkQ1XqZnOH'
+#setup_twitter_oauth(API_key, API_secret, access_token, access_secret)
+```
 
 ## A starting point: The US election
 
 To get warmed up, let's see what the two US presidential nominees have been talking about lately.
-We will use the `r httr` package to request tweets from the API, and some functions from the `r twitteR` package to help put all the tweets into a usable dataframe. All the commands passed to the API are specified in their documentation. Downloading tweets from a single user is very easy, just use the `r userTimeline` function from the `r twitteR` package
+We will use the  httr package to request tweets from the API, and some functions from the twitteR package to help put all the tweets into a usable dataframe. All the commands passed to the API are specified in their documentation. Downloading tweets from a single user is very easy, just use the  userTimeline function from the  twitteR package
 ```{r}
 #n specifies how many tweets you want from the user. We will use 200 in this example, but the maximum is 3200. Unfortunately you can't use the API to request tweets older than a week or two at most. This is a restriction of the Twitter Search API, and it often means you won't actually get the number of tweets you specified.
-clinton_tweets <- userTimeline(user = "@HillaryClinton", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
-trump_tweets <- userTimeline(user = "@realDonaldTrump", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
+#clinton_tweets <- userTimeline(user = "@HillaryClinton", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
+#trump_tweets <- userTimeline(user = "@realDonaldTrump", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
 
-clinton_tweets <- twListToDF(clinton_tweets)
-trump_tweets <- twListToDF(trump_tweets)
+#clinton_tweets <- twListToDF(clinton_tweets)
+#trump_tweets <- twListToDF(trump_tweets)
+
+#HASH THIS AWAY LATER:
+clinton_tweets <- read.csv("clinton_tweets.csv")
+trump_tweets <- read.csv("trump_tweets.csv")
 ```
 
-If you want to save these tweets for a later time, then use `r write_csv()`to write the tweets your hard drive.  
+If you want to save these tweets for a later time, then use  write_csv() to write the tweets your hard drive.  
 Now that we have the tweets down, it is useful to remove any web links and punctuation, as well as stemming the document.
 
 
 
 ```{r}
 #clinton_tweets$text <-  sapply(clinton_tweets, function(x) x$getText())
-# remove punctuation
+# remove punctuation, numbers, html links and unecessary spaces:
 clinton_tweets$text <-  gsub("[[:punct:]]", "", clinton_tweets$text)
-# remove numbers
 clinton_tweets$text <-  gsub("[[:digit:]]", "", clinton_tweets$text)
-# remove html links
 clinton_tweets$text <-  gsub("http\\w+", "", clinton_tweets$text)
-# remove unnecessary spaces
 clinton_tweets$text <-  gsub("[ \t]{2,}", "", clinton_tweets$text)
 clinton_tweets$text <-  gsub("^\\s+|\\s+$", "", clinton_tweets$text)
-
 # repeat for Trump
 trump_tweets$text <-  gsub("[[:punct:]]", "", trump_tweets$text)
 trump_tweets$text <-  gsub("[[:digit:]]", "", trump_tweets$text)
@@ -64,18 +73,74 @@ trump_tweets$text <-  gsub("[ \t]{2,}", "", trump_tweets$text)
 trump_tweets$text <-  gsub("^\\s+|\\s+$", "", trump_tweets$text)
 ```
 
-```{r, echo=T}
-user <- "hillaryclinton" #put in the screen name (not username) of the person you are interested in
-number_of_tweets <- 1 #The maximum is 3200
-#This next line creates the url string which communicates with the API
-    api_url <- paste0("https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=",
-                        user, "&count=", number_of_tweets)
-    
-api_response <- GET(api_url, config(token=twitteR:::get_oauth_sig()))
+After that, we remove all the so-called "stopwords" and convert the text into a Term Document Matrix. We can then count and plot the most used words by each nominee
+```{r}
+tt <- Corpus(VectorSource(trump_tweets$text))
+tt <- tm_map(tt, removeWords, stopwords())
+#tt <- tm_map(tt, stemDocument)
+tdmT <- TermDocumentMatrix(tt, control = list(wordLengths = c(1, Inf)))
+term.freq <- rowSums(as.matrix(tdmT))
+term.freq <- subset(term.freq, term.freq >= 10)
+df.tt <- data.frame(term = names(term.freq), freq = term.freq)
 
-#This.
-response_data <- fromJSON(content(api_response, as = "text", encoding = "UTF-8"))
-df <- do.call("rbind", lapply(response_data, as.data.frame))
-tweets <- twListToDF(response_data)
+ct <- Corpus(VectorSource(clinton_tweets$text))
+ct <- tm_map(ct, removeWords, stopwords())
+#ct <- tm_map(ct, stemDocument)
+tdmC <- TermDocumentMatrix(ct, control = list(wordLengths = c(1, Inf)))
+term.freq <- rowSums(as.matrix(tdmC))
+term.freq <- subset(term.freq, term.freq >= 10)
+df.ct <- data.frame(term = names(term.freq), freq = term.freq)
+```
+  
+Finally we can plot each of the candidates most used words:
+```{r, fig.width= 11}
+trump_plot <- ggplot(df.tt, aes(x = reorder(term, freq), y = freq)) +
+    geom_bar(stat = "identity", fill = "red") +
+    xlab("Most Used") + ylab("How Often") +
+    coord_flip() + theme(text=element_text(size=25,face="bold"))
 
+clinton_plot <- ggplot(df.ct, aes(x = reorder(term, freq), y = freq)) +
+    geom_bar(stat = "identity", fill = "blue") +
+    xlab("Most Used") + ylab("How Often") +
+    coord_flip() + theme(text=element_text(size=25,face="bold"))
+
+grid.arrange(trump_plot, clinton_plot, ncol=2)
+
+```
+  
+It should perhaps not come as any great surpise that Trump talks a lot about himself...
+What's more interesting is how much Clinton talks about Trump! Also notice the difference in Hillary in general being more positive: using the word "can" whereas Trump lambasts that we "can't"
+  
+But that's only for two Twitter-accounts. What if we wanted to look at a selected sample or a section of a population? If you are just interested in massive amounts of data, then Twitter lets you sample 1% of their data. This is relatively noisy though, so often times it is much better (and smarter) to create a list of users you are interested in. After you have created your list you can simply download all the latest tweets from them using a simple for loop.  
+To continue our investigation into the political world, let's compare tweets from [Democrat](https://twitter.com/TheDemocrats/lists/house-democrats) and [Republican](https://twitter.com/HouseGOP/lists/house-republicans) House Representatives
+
+```{r}
+twitter_list <- "House Democrats"
+    twitter_name <- "TheDemocrats"
+    api_url <- paste0("https://api.twitter.com/1.1/lists/members.json?slug=",
+                      twitter_list, "&owner_screen_name=", twitter_name, "&count=5000")
+response <- POST(api_url, config(token=twitteR:::get_oauth_sig()))
+
+response_data <- fromJSON(content(response, as = "text", encoding = "UTF-8"))
+response_data <- fromJSON(content(response))
+## If you want a list of their profile names, then remove the hastag underneath.
+## Useful if you need to verify identity of people.
+#user_title <- sapply(response_text$users, function(i) i$name)
+user_names <- sapply(response_data$users, function(i) i$screen_name)
+
+sleepTime <- 6
+tweets <- list()
+## Loops over list of users, use rbind() to add them to list.
+## 6sec ticks inbetween to avoid rate limit.
+for (user in user_names)
+{
+    #Download user's timeline from Twitter  
+    raw_data <- userTimeline(user, n = 500, includeRts = FALSE, retryOnRateLimit = 2000)
+    tweets <- rbind(tweets, raw_data)
+    print('Sleeping for 6 seconds...')
+    Sys.sleep(sleepTime); 
+}
+rm(raw_data)
+tweets <- twListToDF(tweets)
+write.csv(tweets, file =paste0(twitter_list, ".csv"))
 ```
