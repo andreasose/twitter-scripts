@@ -8,8 +8,9 @@ tdmCreator <- function(dataframe, term.freq = 10, stemDoc = F, rmStopwords = T){
         corpus <- tm_map(corpus, stemDocument)
     }
     tdm <- TermDocumentMatrix(corpus, control = list(wordLengths = c(1, Inf)))
+    tdm <- removeSparseTerms(tdm, sparse= 0.97)
     termFreq <- rowSums(as.matrix(tdm))
-    termFreq <- subset(termFreq, termFreq >= term.freq)
+        termFreq <- subset(termFreq, termFreq >= term.freq)
     df <- data.frame(term = names(termFreq), freq = termFreq)
     return(df)
 }
