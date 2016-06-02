@@ -142,9 +142,15 @@ tweetsFromList <- function (listOwner, listName, sleepTime = 7, n_tweets = 200, 
         raw_data <- userTimeline(user, n = n_tweets,
                                  includeRts = includeRts,
                                  retryOnRateLimit = 2000)
-        tweets <- rbind(tweets, raw_data)
+        if (length(raw_data) != 0L) {
+            tweets <- rbind(tweets, raw_data)
         print('Sleeping to avoid rate limit')
-        Sys.sleep(sleepTime); 
+        Sys.sleep(sleepTime);
+        }
+            else {
+                next
+            }
+         
         }
     rm(raw_data)
     tweets <- twListToDF(tweets)
