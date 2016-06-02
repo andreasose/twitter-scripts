@@ -51,40 +51,48 @@ trump_tweets <- read.csv("trump_tweets.csv")
 ```
 
 If you want to save these tweets for a later time, then use  write_csv() to write the tweets your hard drive.  
-Now that we have the tweets down, it is useful to remove any web links and punctuation, as well as stemming the document.
+Now that we have the tweets down, it is useful to remove any web links and punctuation.
 
 
 
 ```{r}
 # remove punctuation, numbers, html links and unecessary spaces:
 textScrubber <- function(dataframe) {
-    dataframe$text <- gsub("[[:punct:]]", "", dataframe$text)
+    
+    dataframe$text <-  gsub("[[:punct:]]", " ", dataframe$text)
     dataframe$text <-  gsub("[[:digit:]]", "", dataframe$text)
     dataframe$text <-  gsub("http\\w+", "", dataframe$text)
+    dataframe$text <-  gsub("\n", " ", dataframe$text)
     dataframe$text <-  gsub("[ \t]{2,}", "", dataframe$text)
     dataframe$text <-  gsub("^\\s+|\\s+$", "", dataframe$text)
+    dataframe$text <-  tolower(dataframe$text)
+    
     return(dataframe)
 }
 
 ```
-
+To run the function, type in `r clinton_tweets <- textScrubber(clinton_tweets)` and `r trump_tweets <- textScrubber(trump_tweets)`  
 After that, we remove all the so-called "stopwords" and convert the text into a Term Document Matrix. We can then count and plot the most used words by each nominee
 ```{r}
-tdmCreator <- function(dataframe, term.freq = 10, stemDoc = F ){
+tdmCreator <- function(dataframe, term.freq = 10, stemDoc = F, rmStopwords = T){
 
-corpus <- Corpus(VectorSource(dataframe$text))
-corpus <- tm_map(corpus, removeWords, stopwords())
-if (isTRUE(stemDoc)) {
-    corpus <- tm_map(corpus, stemDocument)
-}
-tdm <- TermDocumentMatrix(corpus, control = list(wordLengths = c(1, Inf)))
-term.freq <- rowSums(as.matrix(tdm))
-term.freq <- subset(term.freq, term.freq >= term.freq)
-df <- data.frame(term = names(term.freq), freq = term.freq)
-return(df)
+    corpus <- Corpus(VectorSource(dataframe$text))
+        if (isTRUE(rmStopwords)) {
+            corpus <- tm_map(corpus, removeWords, stopwords())
+        }
+        if (isTRUE(stemDoc)) {
+            corpus <- tm_map(corpus, stemDocument)
+        }
+    tdm <- TermDocumentMatrix(corpus, control = list(wordLengths = c(1,Inf)))
+    termFreq <- rowSums(as.matrix(tdm))
+    termFreq <- subset(termFreq, termFreq >= term.freq)
+    df <- data.frame(term = names(termFreq), freq = termFreq)
+
+    return(df)
 }
 ```
-  
+This function works in the same way, but takes two extra arguments specifiying if you want to stem the words and remove any stopwords. I have set them to respectively false and true in this example for both `r clinton_tweets <- tdmCreator(clinton_tweets)` and `r trump_tweets <- tdmCreator(trump_tweets)`.  
+
 Finally we can plot each of the candidates most used words:
 ```{r, fig.width= 11}
 trump_plot <- ggplot(trump_tweets, aes(x = reorder(term, freq), y = freq)) +
@@ -104,9 +112,10 @@ grid.arrange(trump_plot, clinton_plot, ncol=2)
 [image](C:/Users/user/Dropbox/R/Data/Twitter-scripts/index2.png)  
 
 It should perhaps not come as any great surpise that Trump talks a lot about himself...
-What's more interesting is how much Clinton talks about Trump! Also notice the difference in Hillary in general being more positive: using the word "can" whereas Trump lambasts that we "can't"
+What's more interesting is how much Clinton talks about Trump! Also notice the subtle difference wording: Hillary talks about what we "can" do, wheras Trump says we "can't".
   
 But that's only for two Twitter-accounts. What if we wanted to look at a selected sample or a section of a population? If you are just interested in massive amounts of data, then Twitter lets you sample 1% of their data. This is relatively noisy though, so often times it is much better (and smarter) to create a list of users you are interested in. After you have created your list you can simply download all the latest tweets from them using a simple for loop.  
+
 To continue our investigation into the political world, let's compare tweets from [Democrat](https://twitter.com/TheDemocrats/lists/house-democrats) and [Republican](https://twitter.com/HouseGOP/lists/house-republicans) House Representatives  
 To make things easier, I have created a function that allows us to extract tweets from all the members of a list. All you need to do is supply the function with the list owner, as well as the name of the list. For the democrats, the function would look like this: democrats <- tweetsFromList("TheDemocrats", "house-democrats")
 
@@ -120,13 +129,12 @@ tweetsFromList <- function (listOwner, listName, sleepTime = 7, n_tweets = 200, 
 
     response_data <- fromJSON(content(response, as = "text", encoding = "UTF-8"))
     ## If you want a list of their profile names, then remove the hastag underneath and
-    ## add it to the return statement at the bottom.
+    ## add it to the return statement at the bottom (use a list).
     ## Useful if you need to verify identity of people.
     
     #user_title <- sapply(response_text$users, function(i) i$name)
     user_names <- sapply(response_data$users, function(i) i$screen_name)
     tweets <- list()
-    
     ## Loops over list of users, use rbind() to add them to list.
     ## Sleeptime ticks inbetween to avoid rate limit.
         for (user in user_names) {
@@ -138,12 +146,15 @@ tweetsFromList <- function (listOwner, listName, sleepTime = 7, n_tweets = 200, 
         print('Sleeping to avoid rate limit')
         Sys.sleep(sleepTime); 
         }
-
-rm(raw_data)
-tweets <- twListToDF(tweets)
-return(tweets)
+    rm(raw_data)
+    tweets <- twListToDF(tweets)
+    
+    return(tweets)
 }
 
 ```
 
-We can do the same for Republicans by calling republicans <- tweetsFromList("HouseGOP", "house-republicans") . Note that both of these commands will take some time as there will be a lot of tweets downloaded. 
+For Democrats, the function would look like this: tweetsFromList("TheDemocrats", "house-democrats"). We can do the same for Republicans by calling republicans <- tweetsFromList("HouseGOP", "house-republicans") . Note that both of these commands will take some time as there will be a lot of tweets downloaded. To get an idea for how many tweets, use this formula: (n list members * 7)/60. There's 261 Republicans in our list, so that means it will take approximately 31 minutes to download all the tweets. If you want it to go faster you can adjust the sleepTime parameter. Note however that if you set it below 5, then the API will start throttling you. Go grab a drink instead.  
+After that is done it is strongly advised that you save the contents to your hard drive (so you won't have to download them all at once again). Use write.csv(nameOfFile, "nameOfCSV.csv") to save it in your working directory.
+
+All done? Excellent, now we have a lot of data to work with. I suggest that you first run the text-scrubber.
