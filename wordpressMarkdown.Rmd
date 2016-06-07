@@ -174,3 +174,8 @@ dem <- tdmCreator(dem)
 rep <- tdmCreator(rep)
 
 ```
+
+![image](https://raw.githubusercontent.com/andreasose/twitter-scripts/master/RepVsDem.png)
+  
+  
+That is certainly interesting. Turns out the House actually seems to care about the same things!
