@@ -39,15 +39,15 @@ To get warmed up, let's see what the two US presidential nominees have been talk
 We will use the  httr package to request tweets from the API, and some functions from the twitteR package to help put all the tweets into a usable dataframe. All the commands passed to the API are specified in their documentation. Downloading tweets from a single user is very easy, just use the  userTimeline function from the  twitteR package
 ```{r}
 #n specifies how many tweets you want from the user. We will use 200 in this example, but the maximum is 3200. Unfortunately you can't use the API to request tweets older than a week or two at most. This is a restriction of the Twitter Search API, and it often means you won't actually get the number of tweets you specified.
-#clinton_tweets <- userTimeline(user = "@HillaryClinton", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
-#trump_tweets <- userTimeline(user = "@realDonaldTrump", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
+clinton_tweets <- userTimeline(user = "@HillaryClinton", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
+trump_tweets <- userTimeline(user = "@realDonaldTrump", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
 
 #clinton_tweets <- twListToDF(clinton_tweets)
 #trump_tweets <- twListToDF(trump_tweets)
 
 #HASH THIS AWAY LATER:
-clinton_tweets <- read.csv("clinton_tweets.csv")
-trump_tweets <- read.csv("trump_tweets.csv")
+#clinton_tweets <- read.csv("clinton_tweets.csv")
+#trump_tweets <- read.csv("trump_tweets.csv")
 ```
 
 If you want to save these tweets for a later time, then use  write_csv() to write the tweets your hard drive.  
@@ -71,7 +71,7 @@ textScrubber <- function(dataframe) {
 }
 
 ```
-To run the function, type in `r clinton_tweets <- textScrubber(clinton_tweets)` and `r trump_tweets <- textScrubber(trump_tweets)`  
+To run the function, type in `clinton_tweets <- textScrubber(clinton_tweets)` and `trump_tweets <- textScrubber(trump_tweets)`  
 After that, we remove all the so-called "stopwords" and convert the text into a Term Document Matrix. We can then count and plot the most used words by each nominee
 ```{r}
 tdmCreator <- function(dataframe, term.freq = 10, stemDoc = F, rmStopwords = T){
@@ -91,7 +91,7 @@ tdmCreator <- function(dataframe, term.freq = 10, stemDoc = F, rmStopwords = T){
     return(df)
 }
 ```
-This function works in the same way, but takes two extra arguments specifiying if you want to stem the words and remove any stopwords. I have set them to respectively false and true in this example for both `r clinton_tweets <- tdmCreator(clinton_tweets)` and `r trump_tweets <- tdmCreator(trump_tweets)`.  
+This function works in the same way, but takes two extra arguments specifiying if you want to stem the words and remove any stopwords. I have set them to respectively false and true in this example for both `clinton_tweets <- tdmCreator(clinton_tweets)` and `trump_tweets <- tdmCreator(trump_tweets)`.  
 
 Finally we can plot each of the candidates most used words:
 ```{r, fig.width= 11}
@@ -165,8 +165,8 @@ After that is done it is strongly advised that you save the contents to your har
 
 All done? Excellent, now we have a lot of data to work with. Let's re-run the previous analysis (making sure to set term.freq paramater higher)
 ```{r}
-democrat <- read.csv("democrats.csv")
-republican <- read.csv("republicans.csv")
+#democrat <- read.csv("democrats.csv")
+#republican <- read.csv("republicans.csv")
 dem <- textScrubber(democrat)
 rep <- textScrubber(republican)
 
