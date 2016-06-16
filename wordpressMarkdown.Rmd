@@ -27,10 +27,10 @@ library(tm)
 library(gridExtra)
 
 ```
-If you don't have these packages, then use  install.packages("twitteR", "ggplot2", "httr") before running the code above. To get a feel for the commands we will pass through the code, I urge you to have a look at Twitter's [API documentation](https://dev.twitter.com/rest/public)
+If you don't have these packages, then use  `install.packages()` before running the code above. To get a feel for the commands we will pass through the code, I urge you to have a look at Twitter's [API documentation](https://dev.twitter.com/rest/public)
 ```{r, echo = F}
-
-#setup_twitter_oauth(API_key, API_secret, access_token, access_secret)
+#Type in your app details from Twitter here:
+setup_twitter_oauth(API_key, API_secret, access_token, access_secret)
 ```
 
 ## A starting point: The US election
@@ -42,12 +42,9 @@ We will use the  httr package to request tweets from the API, and some functions
 clinton_tweets <- userTimeline(user = "@HillaryClinton", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
 trump_tweets <- userTimeline(user = "@realDonaldTrump", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
 
-#clinton_tweets <- twListToDF(clinton_tweets)
-#trump_tweets <- twListToDF(trump_tweets)
+clinton_tweets <- twListToDF(clinton_tweets)
+trump_tweets <- twListToDF(trump_tweets)
 
-#HASH THIS AWAY LATER:
-#clinton_tweets <- read.csv("clinton_tweets.csv")
-#trump_tweets <- read.csv("trump_tweets.csv")
 ```
 
 If you want to save these tweets for a later time, then use  write_csv() to write the tweets your hard drive.  
@@ -59,6 +56,7 @@ Now that we have the tweets down, it is useful to remove any web links and punct
 # remove punctuation, numbers, html links and unecessary spaces:
 textScrubber <- function(dataframe) {
     
+    dataframe$text <-  gsub("&amp;", " ", dataframe$text)
     dataframe$text <-  gsub("[[:punct:]]", " ", dataframe$text)
     dataframe$text <-  gsub("[[:digit:]]", "", dataframe$text)
     dataframe$text <-  gsub("http\\w+", "", dataframe$text)

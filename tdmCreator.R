@@ -1,4 +1,4 @@
-tdmCreator <- function(dataframe, term.freq = 10, stemDoc = F, rmStopwords = T){
+tdmCreator <- function(dataframe, stemDoc = T, rmStopwords = T){
     
     corpus <- Corpus(VectorSource(dataframe$text))
     if (isTRUE(rmStopwords)) {
@@ -10,7 +10,7 @@ tdmCreator <- function(dataframe, term.freq = 10, stemDoc = F, rmStopwords = T){
     tdm <- TermDocumentMatrix(corpus, control = list(wordLengths = c(1, Inf)))
     tdm <- removeSparseTerms(tdm, sparse= 0.97)
     termFreq <- rowSums(as.matrix(tdm))
-        termFreq <- subset(termFreq, termFreq >= term.freq)
+    termFreq <- sort(termFreq, decreasing = T)
     df <- data.frame(term = names(termFreq), freq = termFreq)
     return(df)
 }
