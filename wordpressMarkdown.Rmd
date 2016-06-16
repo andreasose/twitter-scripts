@@ -25,6 +25,7 @@ library(httr)
 library(rjson)
 library(tm)
 library(gridExtra)
+library(lubridate)
 
 ```
 If you don't have these packages, then use  `install.packages()` before running the code above. To get a feel for the commands we will pass through the code, I urge you to have a look at Twitter's [API documentation](https://dev.twitter.com/rest/public)
@@ -55,6 +56,7 @@ Now that we have the tweets down, it is useful to remove any web links and punct
 ```{r}
 # remove punctuation, numbers, html links and unecessary spaces:
 textScrubber <- function(dataframe) {
+    
     dataframe$text <-  gsub("—", " ", dataframe$text)
     dataframe$text <-  gsub("&amp;", " ", dataframe$text)
     dataframe$text <-  gsub("[[:punct:]]", " ", dataframe$text)
@@ -70,29 +72,33 @@ textScrubber <- function(dataframe) {
 
 ```
 To run the function, type in `clinton_tweets <- textScrubber(clinton_tweets)` and `trump_tweets <- textScrubber(trump_tweets)`  
-After that, we remove all the so-called "stopwords" and convert the text into a Term Document Matrix. We can then count and plot the most used words by each nominee
+After that, we remove all the so-called "stopwords", convert the text into a Term Document Matrix, remove the least used words, before summing up how many time each word has been used. The top 10 words can then be plotted.
+
 ```{r}
-tdmCreator <- function(dataframe, term.freq = 10, stemDoc = F, rmStopwords = T){
-
-    corpus <- Corpus(VectorSource(dataframe$text))
-        if (isTRUE(rmStopwords)) {
-            corpus <- tm_map(corpus, removeWords, stopwords())
-        }
-        if (isTRUE(stemDoc)) {
-            corpus <- tm_map(corpus, stemDocument)
-        }
-    tdm <- TermDocumentMatrix(corpus, control = list(wordLengths = c(1,Inf)))
-    termFreq <- rowSums(as.matrix(tdm))
-    termFreq <- subset(termFreq, termFreq >= term.freq)
-    df <- data.frame(term = names(termFreq), freq = termFreq)
-
+tdmCreator <- function(dataframe, stemDoc = T, rmStopwords = T){
+    
+    tdm <- Corpus(VectorSource(dataframe$text))
+    if (isTRUE(rmStopwords)) {
+        tdm <- tm_map(tdm, removeWords, stopwords())
+    }
+    if (isTRUE(stemDoc)) {
+        tdm <- tm_map(tdm, stemDocument)
+    }
+    tdm <- TermDocumentMatrix(tdm, control = list(wordLengths = c(1, Inf)))
+    tdm <- rowSums(as.matrix(tdm))
+    tdm <- sort(tdm, decreasing = T)
+    df <- data.frame(term = names(tdm), freq = tdm)
     return(df)
 }
 ```
-This function works in the same way, but takes two extra arguments specifiying if you want to stem the words and remove any stopwords. I have set them to respectively false and true in this example for both `clinton_tweets <- tdmCreator(clinton_tweets)` and `trump_tweets <- tdmCreator(trump_tweets)`.  
+
+This function works in the same way, but takes two extra arguments specifiying if you want to stem the words and remove any stopwords. I have defaulted them to true in this example for both `clinton_tweets <- tdmCreator(clinton_tweets)` and `trump_tweets <- tdmCreator(trump_tweets)`.  
 
 Finally we can plot each of the candidates most used words:
 ```{r, fig.width= 11}
+trump_tweets <- trump_tweets[1:15,]
+clinton_tweets <- clinton_tweets[1:15,]
+
 trump_plot <- ggplot(trump_tweets, aes(x = reorder(term, freq), y = freq)) +
     geom_bar(stat = "identity", fill = "red") +
     xlab("Most Used") + ylab("How Often") +
@@ -159,17 +165,18 @@ tweetsFromList <- function (listOwner, listName, sleepTime = 7, n_tweets = 200, 
 ```
 
 For Democrats, the function would look like this: tweetsFromList("TheDemocrats", "house-democrats"). We can do the same for Republicans by calling republicans <- tweetsFromList("HouseGOP", "house-republicans") . Note that both of these commands will take some time as there will be a lot of tweets downloaded. To get an idea for how many tweets, use this formula: (n list members * 7)/60. There's 261 Republicans in our list, so that means it will take a minumum of 31 minutes to download all the tweets. If you want it to go faster you can adjust the sleepTime parameter. Note however that if you set it below 5, then the API will start throttling you. Go grab a drink instead.  
+
 After that is done it is strongly advised that you save the contents to your hard drive (so you won't have to download them all at once again). Use write.csv(nameOfFile, "nameOfCSV.csv") to save it in your working directory.
 
-All done? Excellent, now we have a lot of data to work with. Let's re-run the previous analysis (making sure to set term.freq paramater higher)
+All done? Excellent, now we have a lot of data to work with. Let's re-run the previous analysis.
 ```{r}
-#democrat <- read.csv("democrats.csv")
-#republican <- read.csv("republicans.csv")
-dem <- textScrubber(democrat)
-rep <- textScrubber(republican)
+democrat <- read.csv("democrats.csv")
+republican <- read.csv("republicans.csv")
+democrat <- textScrubber(democrat)
+republican <- textScrubber(republican)
 
-dem <- tdmCreator(dem)
-rep <- tdmCreator(rep)
+dem <- tdmCreator(democrat)
+rep <- tdmCreator(republican)
 
 ```
 
@@ -177,3 +184,20 @@ rep <- tdmCreator(rep)
   
   
 That is certainly interesting. Turns out the House actually seems to care about the same things!
+
+```{r}
+democrat <- read.csv("democrats.csv")
+republican <- read.csv("republicans.csv")
+democrat$group <- as.factor("dem")
+republican$group <- as.factor("rep")
+both <- rbind(democrat, republican)
+
+both$date <- ymd_hms(both$created)
+both$hour <- hour(both$date) + minute(both$date)/60
+both$day <- weekdays(as.Date(both$date))
+both$day <- factor(both$day, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+#ggplot(both, aes(day, colour = group)) + geom_bar()
+ggplot(both, aes(hour, colour = group)) + geom_density()
+ggplot(both, aes(hour, colour = group)) + geom_density() + facet_wrap(~day, nrow = 3)
+
+```
