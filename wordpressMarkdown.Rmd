@@ -121,7 +121,7 @@ What's more interesting is how much Clinton talks about Trump! Also notice the s
 But that's only for two Twitter-accounts. What if we wanted to look at a selected sample or a section of a population? If you are just interested in massive amounts of data, then Twitter lets you sample 1% of their data. This is relatively noisy though, so often times it is much better (and smarter) to create a list of users you are interested in. After you have created your list you can simply download all the latest tweets from them using a simple for loop.  
 
 To continue our investigation into the political world, let's compare tweets from [Democrat](https://twitter.com/TheDemocrats/lists/house-democrats) and [Republican](https://twitter.com/HouseGOP/lists/house-republicans) House Representatives  
-To make things easier, I have created a function that allows us to extract tweets from all the members of a list. All you need to do is supply the function with the list owner, as well as the name of the list. For the democrats, the function would look like this: democrats <- tweetsFromList("TheDemocrats", "house-democrats")
+To make things easier, I have created a function that allows us to extract tweets from all the members of a list. All you need to do is supply the function with the list owner, as well as the name of the list. For the democrats, the function would look like this: `democrats <- tweetsFromList("TheDemocrats", "house-democrats")`
 
 ```{r}
 
@@ -164,7 +164,7 @@ tweetsFromList <- function (listOwner, listName, sleepTime = 7, n_tweets = 200, 
 
 ```
 
-For Democrats, the function would look like this: tweetsFromList("TheDemocrats", "house-democrats"). We can do the same for Republicans by calling republicans <- tweetsFromList("HouseGOP", "house-republicans") . Note that both of these commands will take some time as there will be a lot of tweets downloaded. To get an idea for how many tweets, use this formula: (n list members * 7)/60. There's 261 Republicans in our list, so that means it will take a minumum of 31 minutes to download all the tweets. If you want it to go faster you can adjust the sleepTime parameter. Note however that if you set it below 5, then the API will start throttling you. Go grab a drink instead.  
+For Democrats, the function would look like this: `tweetsFromList("TheDemocrats", "house-democrats")`. We can do the same for Republicans by calling `republicans <- tweetsFromList("HouseGOP", "house-republicans")` . Note that both of these commands will take some time as there will be a lot of tweets downloaded. To get an idea for how many tweets, use this formula: (n list members * 7)/60. There's 261 Republicans in our list, so that means it will take a minumum of 31 minutes to download all the tweets. If you want it to go faster you can adjust the sleepTime parameter. Note however that if you set it below 5, then the API will start throttling you. Go grab a drink instead.  
 
 After that is done it is strongly advised that you save the contents to your hard drive (so you won't have to download them all at once again). Use write.csv(nameOfFile, "nameOfCSV.csv") to save it in your working directory.
 
@@ -210,3 +210,66 @@ We can see a difference in when they tweet
 ![image](https://raw.githubusercontent.com/andreasose/twitter-scripts/master/densityWeek.png)  
 
 This difference is especially marked on some of the weekdays.
+
+```{r}
+device <- function(dataframe) {
+    tot_all <- length(dataframe$statusSource)
+
+    Web <- 100*(length(grep("Twitter Web Client", dataframe$statusSource))/tot_all)
+    TweetDeck <- 100*(length(grep("TweetDeck", dataframe$statusSource))/tot_all)
+    iPhone <- 100*(length(grep("Twitter for iPhone", dataframe$statusSource))/tot_all)
+    iPad <- 100*(length(grep("Twitter for iPad", dataframe$statusSource))/tot_all)
+    Blackberry <- 100*(length(grep("Twitter for BlackBerry", dataframe$statusSource))/tot_all)
+    Tweetbot <- 100*(length(grep("Tweetbot for i", dataframe$statusSource))/tot_all)
+    Hootsuite <- 100*(length(grep("Hootsuite", dataframe$statusSource))/tot_all)
+    Android <- 100*(length(grep("Twitter for Android", dataframe$statusSource))/tot_all)
+    Ads <- 100*(length(grep("Twitter Ads", dataframe$statusSource))/tot_all)
+    M5 <- 100*(length(grep("Mobile Web (M5)", dataframe$statusSource))/tot_all)
+    Mac <- 100*(length(grep("Twitter for Mac", dataframe$statusSource))/tot_all)
+    Facebook <- 100*(length(grep("Facebook", dataframe$statusSource))/tot_all)
+    Instagram <- 100*(length(grep("Instagram", dataframe$statusSource))/tot_all)
+    IFTT <- 100*(length(grep("IFTT", dataframe$statusSource))/tot_all)
+    Buffer <- 100*(length(grep("Buffer", dataframe$statusSource))/tot_all)
+    CoSchedule <- 100*(length(grep("CoSchedule", dataframe$statusSource))/tot_all)
+    GainApp <- 100*(length(grep("Gain App", dataframe$statusSource))/tot_all)
+    MobileWeb <- 100*(length(grep("Mobile Web", dataframe$statusSource))/tot_all)
+    iOS <- 100*(length(grep("iOS", dataframe$statusSource))/tot_all)
+    OSX <- 100*(length(grep("OS X", dataframe$statusSource))/tot_all)
+    Echofon <- 100*(length(grep("Echofon", dataframe$statusSource))/tot_all)
+    Fireside <- 100*(length(grep("Fireside Publishing", dataframe$statusSource))/tot_all)
+    Google <- 100*(length(grep("Google", dataframe$statusSource))/tot_all)
+    MailChimp <- 100*(length(grep("MailChimp", dataframe$statusSource))/tot_all)
+    TwitterForWebsites <- 100*(length(grep("Twitter for Websites", dataframe$statusSource))/tot_all)
+    
+    percentages <- data.frame(Web, TweetDeck, iPhone, iPad, Blackberry, Tweetbot,
+               Hootsuite, Android, Ads, M5, Mac, Facebook, Instagram,
+               IFTT, Buffer, CoSchedule, GainApp, MobileWeb, iOS, OSX,
+               Echofon, Fireside, Google, MailChimp, TwitterForWebsites)
+    return(percentages)
+}
+```
+
+Now we can sort by most popular devices:
+
+```{r}
+repDevice <- sort(device(republican), decreasing = T)
+demDevice <- sort(device(democrat), decreasing = T)
+clintonDevice <- sort(device(clinton_tweets), decreasing = T)
+trumpDevice <- sort(device(trump_tweets), decreasing = T)
+#pick out the top 5 platforms:
+repDevice[ ,1:5]
+#   Web TweetDeck   iPhone Hootsuite Facebook
+#50.40192  21.82417 17.07703  3.487563 1.424141
+demDevice[ ,1:5]
+#   Web   iPhone TweetDeck Hootsuite     iPad
+#51.41274 20.81256  17.50693  2.705448 1.745152
+trumpDevice[ ,1:5]
+#   Android   iPhone      Web TweetDeck iPad
+# 62.62626 28.28283 9.090909         0    0  
+clintonDevice[ ,1:5]
+#   TweetDeck    Web   iPhone iPad Blackberry
+#  73.02632 21.05263 5.921053    0          0
+```
+  
+That's some pretty big differences there between Trump and Hillary especially. Whereas Hillary seems to use Tweetdeck the most (probably to schedule tweets), Trump seems to live and die by his two phones.  
+Republicans and Democrats are more similar, but note how Republicans seem to use scheduling services (TweetDeck and Hootsuite) more often. Also of note is the complete lack of Android phones used by the representatives. 
