@@ -50,7 +50,7 @@ trump_tweets <- twListToDF(trump_tweets)
 
 ```
 
-If you want to save these tweets for a later time, then use  `write.csv()` to write the tweets to your hard drive. Now that we have the tweets down, it is useful to remove any unneccesary fluff.  
+If you do not include retweets you will quite not get the amount of tweets you specified (as they are counted but not downloded). If you want to save these tweets for a later time, then use  `write.csv(downloadedData, "nameCSV.csv")` to write the tweets to your hard drive. Now that we have the tweets down, it is useful to remove any unneccesary fluff:  
 
 
 ```{r}
@@ -72,7 +72,7 @@ textScrubber <- function(dataframe) {
 
 ```
 To run the function, type in `clinton_tweets <- textScrubber(clinton_tweets)` and `trump_tweets <- textScrubber(trump_tweets)`  
-After that, we remove all the so-called "stopwords"(words that do not carry any significant meaning to the topic), and convert the text into a Term Document Matrix. The TDM is then summed up so we get a data.frame of words arranged by how often they are used 
+After that, we remove all the so-called "stopwords"(words that do not add meaning to the topic), and convert the text into a Term Document Matrix. The TDM is then summed up so we get a data.frame of words arranged by how often they are used 
 
 ```{r}
 tdmCreator <- function(dataframe, stemDoc = T, rmStopwords = T){
@@ -92,8 +92,8 @@ tdmCreator <- function(dataframe, stemDoc = T, rmStopwords = T){
 }
 ```
 
-Making a function like this is not strictly necessary, and if you want to do serious text mining (or sentiment analysis, then it is advisable to save a separate TDM for later use. For now though, having a function makes repeating the same code over and over again a little easier.The function takes two extra arguments. StemDoc asks if you want to stem the text, making the computertry to make words that are similar appear as the same. So "great" and "greater" gets treated as the same identity. rmStopwords simply removes words that are often used but don't add any additional meaning. I have defaulted them to true in this example for both, but you can experiment with switching these on and off to see how it affects your results. 
-To clean the tweets, pass  `clinton_tweets <- tdmCreator(clinton_tweets)` and `trump_tweets <- tdmCreator(trump_tweets)` into R.  
+Making a function like this is not strictly necessary, and if you want to do serious text mining (or sentiment analysis, then it is advisable to save a separate TDM for later use. For now though, having a function makes repeating the same code over and over again a little easier. The function takes two extra arguments. StemDoc asks if you want to stem the text, making the computertry to make words that are similar appear as the same. So "great" and "greater" gets treated as the same identity. rmStopwords simply removes words that are often used but don't add any additional meaning. I have defaulted them to true in this example for both, but you can experiment with switching these on and off to see how it affects your results. 
+To clean the tweets, simply pass  `clinton_tweets <- tdmCreator(clinton_tweets)` and `trump_tweets <- tdmCreator(trump_tweets)` as arguments.  
 
 Finally we can plot each of the candidates most used words:  
 
@@ -183,7 +183,7 @@ Note that both of these commands will take some time as there will be a lot of t
 
 After that is done it is strongly advised that you save the contents to your hard drive (so you won't have to download them all at once again). Use `write.csv(nameOfFile, "nameOfCSV.csv")` to save it in your working directory.
 
-All done? Excellent, now we have a lot of data to work with. Let's re-run the previous analysis.
+All done? Excellent, now we have a lot of data to work with. Let's re-run the previous analysis and plot the graphs I have ommited the plotting code as it is identical to the one used above.
 ```{r}
 democrats <- read.csv("democrats.csv")
 republicans <- read.csv("republicans.csv")
