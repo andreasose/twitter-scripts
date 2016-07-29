@@ -209,7 +209,7 @@ That's all fine and good, but to really gain an understanding of their differenc
 - Do they for example tweet at different times of day to target their preferred audience?
 - Do they all carefully schedule their tweets, or can they be more impulsive (dependent on party)?
 
-This is not an exhaustive list of topics that can be investigated, but there is a lot you can do with the meta-data that also gets downloaded. use the `View()`to investigate the data.frame of tweets yourself and you will se that there are numerous other things apart from just the tweets that gets downloaded. Let's start with a comparison of when democrats and republicans tweet:
+This is not an exhaustive list of topics that can be investigated, but there is a lot you can do with the meta-data that also gets downloaded. use the `str`or `View()` function to investigate the data.frame of tweets yourself and you will se that there are numerous other things apart from just the tweets that gets downloaded. Let's start with a comparison of when democrats and republicans tweet:
 
 ```{r}
 democrats$group <- as.factor("dem")
@@ -234,14 +234,16 @@ ggplot(both, aes(hour, colour = group)) + geom_density() + facet_wrap(~day, nrow
   
 ![image](https://raw.githubusercontent.com/andreasose/twitter-scripts/master/densityDay.png)  
 
-Voila; there actually seems to be a large gap in the peaks between the political representatives. Also notice that democrats are slightly more likely to stay up late at night to tweet. maybe more "liberal"" with the alcohol and impulse control? If we divide up the plot by each days we also get a lot of info:  
+Voila; a kernel density plot showing when tweets appear. There actually seems to be a large gap in the peaks between the political representatives! Also notice that democrats are slightly more likely to stay up late at night to tweet. Maybe they are more "liberal"" with the alcohol and therefore have less impulse control? One can only imagine...  
+
+If we divide up the plot by each days we also get a lot of info:  
 
 ![image](https://raw.githubusercontent.com/andreasose/twitter-scripts/master/densityWeek.png)  
 
 Republicans have their peak almost always at 15:00 every single day. I am not American myself so I don't know the political system well enough, but that does seem like something a little too odd to just be a coincidence. Feel free to come with suggestions in the comments. On a more humourous note, the late-night bump for the democrats are even more pronounced during the weekend. 
 
-# # What platform do they tweet from?  
-To answer this question, we tidy up and count the different names found in the "StatusSource"-part of our data.frame:
+# # Who schedules the most and who tweets more on the fly?  
+To answer this question, we tidy up and count the different names found in the "StatusSource"-part of our data.frame. This will act as a proxy for scheduling (as this is a function limited to certain platforms):
 
 ```{r}
 device <- function(dataframe) {
@@ -303,6 +305,8 @@ clintonDevice[ ,1:5]
 #  73.02632 21.05263 5.921053    0          0
 ```
   
-That's some pretty big differences there between Trump and Hillary especially. Whereas Hillary seems to use Tweetdeck the most (probably to schedule tweets), Trump seems to live and die by his two phones. This is consistent with his impulsive image.  
-Republicans and Democrats are more similar, especially in how no-one uses Android phones. But note how Republicans seem to use scheduling services (TweetDeck and Hootsuite) more often. This could potentially explain the 15:00 bump that we found previously. A more thorough investigation could look at what type of platforms were most used around that time of day, but this article is already getting quite long. So I am going to stop here, and I hope you will play around with the code yourself to see what you can find.
-Also of note is the complete lack of Android phones used by the representatives. This is perhaps
+That's some pretty big differences there between Trump and Hillary especially. Whereas Hillary seems to use Tweetdeck the most (probably to schedule tweets), Trump seems to live and die by his [two phones](https://twitter.com/realdonaldtrump/status/700795170023825408).This is consistent with his impulsive image.  
+
+Republicans and Democrats are more similar, especially in how no-one uses Android phones. Looks like if you're an American representative, then you better use American products. But note how Republicans seem to use scheduling services (TweetDeck and Hootsuite) more often. This could potentially explain the 15:00 bump that we found previously.  
+
+A more thorough investigation could look at what type of platforms were most used around that time of day, but this article is already getting quite long. So I am going to stop here, and I hope you will play around with the code yourself to see what you can find. In the future I am hoping to make a post on combining different sorts of meta-data using the dplyr package to answer even more fine-grained questions.
