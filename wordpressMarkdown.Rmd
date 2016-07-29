@@ -5,15 +5,12 @@ date: "1 June 2016"
 output: html_document
 ---
 
-Today I want to show how to use R (with some packages) in order to download and analyze tweets. Despite numerous such guides have been written before, I have been wanting to write this guide for several reasons:
+Greetings. For my first blog post, I want to show how to use R to mine Twitter-data. I have been wanting to write this guide for several reasons. While there are many other guides that shows the same, they are often very simplistic and only show you how to create a wordcloud of your own tweets or on a particular topic. As behavioural scientists however, we are often more interested in comparing and contrasting data between groups. This means that the scripts we want to write have to be more reusable in nature, in order to retrieve, load, and analyze several different groups repeatedly. To this end, I will provide some simple functions built on top of other packages that enables you to download tweets from a pre-specified **group** of people instead of just whoever tweets on a certain topic. Lastly, I wanted to show how analysing the Twitter meta-data in addition to the tweets themselves can lead to better behavioural insights.  
 
-- many of said guides only demonstrate how to download said tweets, and leave you to discover how to use them in any sensible way.
-- As behavioural scientists, big data can be cool. More often however narrow hypotheses with carefully selected participants allows us to find more useful things, instead of shifting through a lot of noisy data.
-- not enough of the scripts I found online are particularly reusable. Adding some simple functions to the scripts will help, as I've done in this post.
-- There's really a lot of fun to be had with data from Twitter.
-  
-This guide requires that you have a Twitter account, R(studio), and have setup a twitter-dev account with OAuth. I'll leave the details of how to get OAuth here, since it explains it better than I would have been able to.  
-By the end of this guide you will be able to download tweets from specific users and from lists, as well as plotting commonly used words and examining tweeting activity.
+
+This guide requires that you have a Twitter account, R(studio), and have setup a twitter-dev account with OAuth. I'll leave the details of how to get OAuth and dev-app running [here](http://www.r-bloggers.com/setting-up-the-twitter-r-package-for-text-analytics/), since it explains it better than I would have been able to.  
+
+By the end of this guide you will be able to download tweets from specific users and from lists, plotting commonly used words and examining tweeting activity using meta-data. I am going to use a combination of the excellent twitteR package and httr for pulling tweets, 
  
 
 
@@ -28,33 +25,36 @@ library(gridExtra)
 library(lubridate)
 
 ```
-If you don't have these packages, then use  `install.packages()` before running the code above. To get a feel for the commands we will pass through the code, I urge you to have a look at Twitter's [API documentation](https://dev.twitter.com/rest/public)
+  
+If you don't have these packages, then use  `install.packages("NameOfPackage")` before running the code above. To get a feel for the commands we will pass through the code, I urge you to have a look at Twitter's [API documentation](https://dev.twitter.com/rest/public).   
+
 ```{r, echo = F}
-#Type in your app details from Twitter here:
+# Type in your app details from Twitter here:
 setup_twitter_oauth(API_key, API_secret, access_token, access_secret)
 ```
 
 ## A starting point: The US election
 
-To get warmed up, let's see what the two US presidential nominees have been talking about lately.
-We will use the  httr package to request tweets from the API, and some functions from the twitteR package to help put all the tweets into a usable dataframe. All the commands passed to the API are specified in their documentation. Downloading tweets from a single user is very easy, just use the  userTimeline function from the  twitteR package
-```{r}
-#n specifies how many tweets you want from the user. We will use 200 in this example, but the maximum is 3200. Unfortunately you can't use the API to request tweets older than a week or two at most. This is a restriction of the Twitter Search API, and it often means you won't actually get the number of tweets you specified.
-clinton_tweets <- userTimeline(user = "@HillaryClinton", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
-trump_tweets <- userTimeline(user = "@realDonaldTrump", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
+To get warmed up, let's see what the two US presidential nominees have been talking about.
+Downloading tweets from a single user is very easy, just use the  `userTimeline()` function from the  twitteR package.  
 
+```{r}
+# n specifies how many tweets you want from the user. We will use 200 in this example, but the maximum is 3200. Unfortunately you can't use the API to request tweets older than a week or two at most. This is a restriction of the Twitter Search API, and it often means you won't actually get the number of tweets you specified.  
+
+clinton_tweets <- userTimeline(user = "@HillaryClinton", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)
+trump_tweets <- userTimeline(user = "@realDonaldTrump", n = 200, includeRts = FALSE, retryOnRateLimit = 2000)  
+
+# Put the tweets downloaded into a data.frame
 clinton_tweets <- twListToDF(clinton_tweets)
 trump_tweets <- twListToDF(trump_tweets)
 
 ```
 
-If you want to save these tweets for a later time, then use  write_csv() to write the tweets your hard drive.  
-Now that we have the tweets down, it is useful to remove any web links and punctuation.
-
+If you want to save these tweets for a later time, then use  `write.csv()` to write the tweets to your hard drive. Now that we have the tweets down, it is useful to remove any unneccesary fluff.  
 
 
 ```{r}
-# remove punctuation, numbers, html links and unecessary spaces:
+# Remove punctuation, numbers, html-links and unecessary spaces:
 textScrubber <- function(dataframe) {
     
     dataframe$text <-  gsub("—", " ", dataframe$text)
@@ -72,7 +72,7 @@ textScrubber <- function(dataframe) {
 
 ```
 To run the function, type in `clinton_tweets <- textScrubber(clinton_tweets)` and `trump_tweets <- textScrubber(trump_tweets)`  
-After that, we remove all the so-called "stopwords", convert the text into a Term Document Matrix, remove the least used words, before summing up how many time each word has been used. The top 10 words can then be plotted.
+After that, we remove all the so-called "stopwords"(words that do not carry any significant meaning to the topic), and convert the text into a Term Document Matrix. The TDM is then summed up so we get a data.frame of words arranged by how often they are used 
 
 ```{r}
 tdmCreator <- function(dataframe, stemDoc = T, rmStopwords = T){
@@ -92,13 +92,17 @@ tdmCreator <- function(dataframe, stemDoc = T, rmStopwords = T){
 }
 ```
 
-This function works in the same way, but takes two extra arguments specifiying if you want to stem the words and remove any stopwords. I have defaulted them to true in this example for both `clinton_tweets <- tdmCreator(clinton_tweets)` and `trump_tweets <- tdmCreator(trump_tweets)`.  
+Making a function like this is not strictly necessary, and if you want to do serious text mining (or sentiment analysis, then it is advisable to save a separate TDM for later use. For now though, having a function makes repeating the same code over and over again a little easier.The function takes two extra arguments. StemDoc asks if you want to stem the text, making the computertry to make words that are similar appear as the same. So "great" and "greater" gets treated as the same identity. rmStopwords simply removes words that are often used but don't add any additional meaning. I have defaulted them to true in this example for both, but you can experiment with switching these on and off to see how it affects your results. 
+To clean the tweets, pass  `clinton_tweets <- tdmCreator(clinton_tweets)` and `trump_tweets <- tdmCreator(trump_tweets)` into R.  
 
-Finally we can plot each of the candidates most used words:
+Finally we can plot each of the candidates most used words:  
+
 ```{r, fig.width= 11}
+# Selects the 15 most used words.
 trump_tweets <- trump_tweets[1:15,]
 clinton_tweets <- clinton_tweets[1:15,]
 
+# Create bar graph with appropriate colours and use coord_flip() to help the labels look nicer.
 trump_plot <- ggplot(trump_tweets, aes(x = reorder(term, freq), y = freq)) +
     geom_bar(stat = "identity", fill = "red") +
     xlab("Most Used") + ylab("How Often") +
@@ -109,28 +113,30 @@ clinton_plot <- ggplot(clinton_tweets, aes(x = reorder(term, freq), y = freq)) +
     xlab("Most Used") + ylab("How Often") +
     coord_flip() + theme(text=element_text(size=25,face="bold"))
 
+# There are other ways to get these plots side-by-side, but this is easy.
 grid.arrange(trump_plot, clinton_plot, ncol=2)
 
 ```
   
 ![image](https://raw.githubusercontent.com/andreasose/twitter-scripts/master/TrumpVsClinton.png "Trump Vs Clinton")  
 
-It should perhaps not come as any great surpise that Trump talks a lot about himself...
-What's more interesting is how much Clinton talks about Trump! Also notice the subtle difference wording: Hillary talks about what we "can" do, wheras Trump says we "can't".
+At the time of writing, these tweets are a little old, but they still convey a good deal of information. It is immediately obvious that both Trump and Clinton spend a great deal of time talking about Trump. Especially Hillary seems to really try to mention him as much as possible. Trump talking about himself is not really that much of a surprise...  
   
-But that's only for two Twitter-accounts. What if we wanted to look at a selected sample or a section of a population? If you are just interested in massive amounts of data, then Twitter lets you sample 1% of their data. This is relatively noisy though, so often times it is much better (and smarter) to create a list of users you are interested in. After you have created your list you can simply download all the latest tweets from them using a simple for loop.  
+But that's only for two Twitter-accounts. What if we wanted to look at a selected sample or a section of a population? If you are just interested in massive, massive amounts of data, then Twitter lets you sample 1% of their tweets using a specified function. This is relatively noisy though and if you don't know what you are looking for, then you aren't likely to find anything either. There are other guides that show you how to do this, but I want to show instead how we can use twitter-lists to mine data from a pre-specified group/list of people instead. After you have created your list you can simply download all the latest tweets from them using a simple `for` loop.  
 
-To continue our investigation into the political world, let's compare tweets from [Democrat](https://twitter.com/TheDemocrats/lists/house-democrats) and [Republican](https://twitter.com/HouseGOP/lists/house-republicans) House Representatives  
-To make things easier, I have created a function that allows us to extract tweets from all the members of a list. All you need to do is supply the function with the list owner, as well as the name of the list. For the democrats, the function would look like this: `democrats <- tweetsFromList("TheDemocrats", "house-democrats")`
+
+# # Comparing groups of tweeters  
+
+To make things easier, I have made the previous step into a function built on top of `twitteR::userTimeline()`: 
 
 ```{r}
-
+# Download tweets from a group of people specified in a Twitter list.
 tweetsFromList <- function (listOwner, listName, sleepTime = 7, n_tweets = 200, includeRts = F) {
 
     api_url <- paste0("https://api.twitter.com/1.1/lists/members.json?slug=",
                   listName, "&owner_screen_name=", listOwner, "&count=5000")
+    # Pull out the users from the list
     response <- GET(api_url, config(token=twitteR:::get_oauth_sig()))
-
     response_data <- fromJSON(content(response, as = "text", encoding = "UTF-8"))
     ## If you want a list of their profile names, then remove the hastag underneath and
     ## add it to the return statement at the bottom (use a list).
@@ -150,6 +156,7 @@ tweetsFromList <- function (listOwner, listName, sleepTime = 7, n_tweets = 200, 
             tweets <- rbind(tweets, raw_data)
         print('Sleeping to avoid rate limit')
         Sys.sleep(sleepTime);
+        # If a Twitter-user has no tweets, userTimeline and rbind fails. The if-else statement solves this.
         }
             else {
                 next
@@ -164,39 +171,61 @@ tweetsFromList <- function (listOwner, listName, sleepTime = 7, n_tweets = 200, 
 
 ```
 
-For Democrats, the function would look like this: `tweetsFromList("TheDemocrats", "house-democrats")`. We can do the same for Republicans by calling `republicans <- tweetsFromList("HouseGOP", "house-republicans")` . Note that both of these commands will take some time as there will be a lot of tweets downloaded. To get an idea for how many tweets, use this formula: (n list members * 7)/60. There's 261 Republicans in our list, so that means it will take a minumum of 31 minutes to download all the tweets. If you want it to go faster you can adjust the sleepTime parameter. Note however that if you set it below 5, then the API will start throttling you. Go grab a drink instead.  
+Twitter-lists are lists of Twitter members that users create on Twitter in order to filter their home feed and only recieve tweets from those members. These lists are useful for data-mining since they allow us to put people in different quasi-experimental groups that we can then compare afterwards. So all you need to do is to create separate lists of the groups of people you want to extract tweets from. If you don't have your own lists (they are easy to make), then you can also just use someone elses list. Simply supply the function with the list owner, as well as the name of the list.
+To continue our investigation into the political world, let's compare tweets from [Democrat](https://twitter.com/TheDemocrats/lists/house-democrats) and [Republican](https://twitter.com/HouseGOP/lists/house-republicans) House Representatives.  
+ 
+```{r}
+republicans <- tweetsFromList("HouseGOP", "house-republicans")
+democrats <- tweetsFromList("TheDemocrats", "house-democrats")
+```
+  
+Note that both of these commands will take some time as there will be a lot of tweets downloaded. To get an idea for how many tweets, use this formula: (number of list members * 7 sec)/60sec. There's 261 Republicans in our list, so that means it will take a minumum of 31 minutes to download all the tweets. If you want it to go faster you can adjust the sleepTime parameter. Note however that if you set it below 5, then the Twitter API will start throttling you. Go grab a drink instead.  
 
-After that is done it is strongly advised that you save the contents to your hard drive (so you won't have to download them all at once again). Use write.csv(nameOfFile, "nameOfCSV.csv") to save it in your working directory.
+After that is done it is strongly advised that you save the contents to your hard drive (so you won't have to download them all at once again). Use `write.csv(nameOfFile, "nameOfCSV.csv")` to save it in your working directory.
 
 All done? Excellent, now we have a lot of data to work with. Let's re-run the previous analysis.
 ```{r}
-democrat <- read.csv("democrats.csv")
-republican <- read.csv("republicans.csv")
-democrat <- textScrubber(democrat)
-republican <- textScrubber(republican)
+democrats <- read.csv("democrats.csv")
+republicans <- read.csv("republicans.csv")
+democrats <- textScrubber(democrats)
+republicans <- textScrubber(republicans)
 
-dem <- tdmCreator(democrat)
-rep <- tdmCreator(republican)
+# Warning: this step requires a lot of working memory available. If you do not have this, add the removeSparseTerms(tdm, .97) to the tdmCreator function code (before the rowSums call)
+dem <- tdmCreator(democrats)
+rep <- tdmCreator(republicans)
 
 ```
 
 ![image](https://raw.githubusercontent.com/andreasose/twitter-scripts/master/RepVsDem.png)
   
   
-That is certainly interesting. Turns out the House actually seems to care about the same things!
+That is certainly interesting. Turns out the House actually seems to care about the same things! Being up for re-election so much of the time seems to have a rather humbling effect.
+
+## Using meta-data to dig even deeper.
+
+That's all fine and good, but to really gain an understanding of their differences it is useful to look at some of the meta-data. For some reason this is rarely used in other guides on analyzing tweets, but I think they are useful to check for a couple of things:
+
+- Do politicians have different tweeting strategies?
+- Do they for example tweet at different times of day to target their preferred audience?
+- Do they all carefully schedule their tweets, or can they be more impulsive (dependent on party)?
+
+This is not an exhaustive list of topics that can be investigated, but there is a lot you can do with the meta-data that also gets downloaded. use the `View()`to investigate the data.frame of tweets yourself and you will se that there are numerous other things apart from just the tweets that gets downloaded. Let's start with a comparison of when democrats and republicans tweet:
 
 ```{r}
-democrat <- read.csv("democrats.csv")
-republican <- read.csv("republicans.csv")
-democrat$group <- as.factor("dem")
-republican$group <- as.factor("rep")
-both <- rbind(democrat, republican)
+democrats$group <- as.factor("dem")
+republicans$group <- as.factor("rep")
+# Create one large data.frame for comparison
+both <- rbind(democrats, republicans)
 
+# Use the lubridate package to make working with time easier.
 both$date <- ymd_hms(both$created)
 both$hour <- hour(both$date) + minute(both$date)/60
 both$day <- weekdays(as.Date(both$date))
+#rearrange the weekdays in chronological order
 both$day <- factor(both$day, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
-#ggplot(both, aes(day, colour = group)) + geom_bar()
+#this last re-factoring just makes the colors in the plot correct. For your own groups you want to remove the line of code underneath.
+both$group <- factor(both$group, levels = c("rep", "dem"))
+
 ggplot(both, aes(hour, colour = group)) + geom_density()
 ggplot(both, aes(hour, colour = group)) + geom_density() + facet_wrap(~day, nrow = 3)
 
@@ -205,11 +234,14 @@ ggplot(both, aes(hour, colour = group)) + geom_density() + facet_wrap(~day, nrow
   
 ![image](https://raw.githubusercontent.com/andreasose/twitter-scripts/master/densityDay.png)  
 
-We can see a difference in when they tweet  
+Voila; there actually seems to be a large gap in the peaks between the political representatives. Also notice that democrats are slightly more likely to stay up late at night to tweet. maybe more "liberal"" with the alcohol and impulse control? If we divide up the plot by each days we also get a lot of info:  
 
 ![image](https://raw.githubusercontent.com/andreasose/twitter-scripts/master/densityWeek.png)  
 
-This difference is especially marked on some of the weekdays.
+Republicans have their peak almost always at 15:00 every single day. I am not American myself so I don't know the political system well enough, but that does seem like something a little too odd to just be a coincidence. Feel free to come with suggestions in the comments. On a more humourous note, the late-night bump for the democrats are even more pronounced during the weekend. 
+
+# # What platform do they tweet from?  
+To answer this question, we tidy up and count the different names found in the "StatusSource"-part of our data.frame:
 
 ```{r}
 device <- function(dataframe) {
@@ -252,8 +284,8 @@ device <- function(dataframe) {
 Now we can sort by most popular devices:
 
 ```{r}
-repDevice <- sort(device(republican), decreasing = T)
-demDevice <- sort(device(democrat), decreasing = T)
+repDevice <- sort(device(republicans), decreasing = T)
+demDevice <- sort(device(democrats), decreasing = T)
 clintonDevice <- sort(device(clinton_tweets), decreasing = T)
 trumpDevice <- sort(device(trump_tweets), decreasing = T)
 #pick out the top 5 platforms:
@@ -271,5 +303,6 @@ clintonDevice[ ,1:5]
 #  73.02632 21.05263 5.921053    0          0
 ```
   
-That's some pretty big differences there between Trump and Hillary especially. Whereas Hillary seems to use Tweetdeck the most (probably to schedule tweets), Trump seems to live and die by his two phones.  
-Republicans and Democrats are more similar, but note how Republicans seem to use scheduling services (TweetDeck and Hootsuite) more often. Also of note is the complete lack of Android phones used by the representatives. 
+That's some pretty big differences there between Trump and Hillary especially. Whereas Hillary seems to use Tweetdeck the most (probably to schedule tweets), Trump seems to live and die by his two phones. This is consistent with his impulsive image.  
+Republicans and Democrats are more similar, especially in how no-one uses Android phones. But note how Republicans seem to use scheduling services (TweetDeck and Hootsuite) more often. This could potentially explain the 15:00 bump that we found previously. A more thorough investigation could look at what type of platforms were most used around that time of day, but this article is already getting quite long. So I am going to stop here, and I hope you will play around with the code yourself to see what you can find.
+Also of note is the complete lack of Android phones used by the representatives. This is perhaps
