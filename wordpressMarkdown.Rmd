@@ -23,6 +23,7 @@ library(rjson)
 library(tm)
 library(gridExtra)
 library(lubridate)
+library(SnowballC)
 
 ```
   
@@ -50,21 +51,21 @@ trump_tweets <- twListToDF(trump_tweets)
 
 ```
 
-If you do not include retweets you will quite not get the amount of tweets you specified (as they are counted but not downloded). If you want to save these tweets for a later time, then use  `write.csv(downloadedData, "nameCSV.csv")` to write the tweets to your hard drive. Now that we have the tweets down, it is useful to remove any unneccesary fluff:  
+If you do not include retweets you will quite not get the amount of tweets you specified (as they are counted but not downloaded). If you want to save these tweets for a later time, then use  `write.csv(downloadedData, "nameCSV.csv")` to write the tweets to your hard drive. Now that we have the tweets down, it is useful to remove any unneccesary fluff:  
 
 
 ```{r}
 # Remove punctuation, numbers, html-links and unecessary spaces:
 textScrubber <- function(dataframe) {
     
+    dataframe$text <-  gsub("http\\S+\\s*", "", dataframe$text)
+    dataframe$text <-  gsub("\n", " ", dataframe$text)
+    dataframe$text <-  gsub("https\\w+", "", dataframe$text)
+    dataframe$text <-  gsub("http\\w+", "", dataframe$text)
     dataframe$text <-  gsub("—", " ", dataframe$text)
     dataframe$text <-  gsub("&amp;", " ", dataframe$text)
     dataframe$text <-  gsub("[[:punct:]]", " ", dataframe$text)
-    dataframe$text <-  gsub("[[:digit:]]", "", dataframe$text)
-    dataframe$text <-  gsub("http\\w+", "", dataframe$text)
-    dataframe$text <-  gsub("\n", " ", dataframe$text)
-    dataframe$text <-  gsub("[ \t]{2,}", "", dataframe$text)
-    dataframe$text <-  gsub("^\\s+|\\s+$", "", dataframe$text)
+    dataframe$text <-  gsub("[[:digit:]]", " ", dataframe$text)
     dataframe$text <-  tolower(dataframe$text)
     
     return(dataframe)
@@ -92,7 +93,7 @@ tdmCreator <- function(dataframe, stemDoc = T, rmStopwords = T){
 }
 ```
 
-Making a function like this is not strictly necessary, and if you want to do serious text mining (or sentiment analysis, then it is advisable to save a separate TDM for later use. For now though, having a function makes repeating the same code over and over again a little easier. The function takes two extra arguments. StemDoc asks if you want to stem the text, making the computertry to make words that are similar appear as the same. So "great" and "greater" gets treated as the same identity. rmStopwords simply removes words that are often used but don't add any additional meaning. I have defaulted them to true in this example for both, but you can experiment with switching these on and off to see how it affects your results. 
+Making a function like this is not strictly necessary, and if you want to do serious text mining (or sentiment analysis, then it is advisable to save a separate TDM for later use. For now though, having a function makes repeating the same code over and over again a little easier. The function takes two extra arguments. StemDoc asks if you want to stem the text, making the computer try to make words that are similar appear as the same. So "great" and "greater" gets treated as the same identity. rmStopwords simply removes words that are often used but don't add any additional meaning. I have defaulted them to true in this example for both, but you can experiment with switching these on and off to see how it affects your results. 
 To clean the tweets, simply pass  `clinton_tweets <- tdmCreator(clinton_tweets)` and `trump_tweets <- tdmCreator(trump_tweets)` as arguments.  
 
 Finally we can plot each of the candidates most used words:  
